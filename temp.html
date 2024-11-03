@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temporary Email Generator</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #email { font-weight: bold; }
+        #inbox { margin-top: 20px; }
+        .email-item { margin: 5px 0; }
+    </style>
+</head>
+<body>
+
+<h1>Temporary Email Generator</h1>
+<button id="generate">Generate Temporary Email</button>
+<p>Your Temporary Email: <span id="email">Not generated yet</span></p>
+<button id="copy">Copy Email</button>
+
+<h2>Inbox</h2>
+<div id="inbox">
+    <p>No emails received.</p>
+</div>
+
+<script>
+    let tempEmail = '';
+
+    async function generateEmail() {
+        try {
+            const response = await fetch('https://api.guerrillamail.com/ajax.php?f=get_email_address');
+            const data = await response.json();
+            tempEmail = data.email_addr;
+            document.getElementById('email').textContent = tempEmail;
+            document.getElementById('inbox').innerHTML = '<p>No emails received.</p>';
+            fetchInbox(); // Fetch inbox immediately after generating an email
+        } catch (error) {
+            console.error('Error generating email:', error);
+            alert('Error generating email. Please try again later.');
+        }
+    }
+
+    async function fetchInbox() {
+        if (!tempEmail) return;
+
+        try {
+            const response = await fetch(`https://api.guerrillamail.com/ajax.php?f=check_email&email=${tempEmail}`);
+            const data = await response.json();
+            const inboxDiv = document.getElementById('inbox');
+
+            if (data.inbox.length === 0) {
+                inboxDiv.innerHTML = '<p>No emails received.</p>';
+            } else {
+                inboxDiv.innerHTML = ''; // Clear previous emails
+                data.inbox.forEach(email => {
+                    const emailItem = document.createElement('div');
+                    emailItem.className = 'email-item';
+                    emailItem.textContent = `From: ${email.from} | Subject: ${email.subject}`;
+                    inboxDiv.appendChild(emailItem);
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching inbox:', error);
+        }
+    }
+
+    function copyEmail() {
+        navigator.clipboard.writeText(tempEmail).then(() => {
+            alert('Email copied to clipboard!');
+        }).catch(err => {
+            console.error('Could not copy text:', err);
+        });
+    }
+
+    document.getElementById('generate').addEventListener('click', generateEmail);
+    document.getElementById('copy').addEventListener('click', copyEmail);
+
+    // Poll for new emails every 5 seconds
+    setInterval(fetchInbox, 5000);
+</script>
+
+</body>
+</html>
